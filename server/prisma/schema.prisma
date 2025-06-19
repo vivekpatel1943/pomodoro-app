@@ -20,6 +20,7 @@ model User {
   email String @unique
   password String
   createdAt DateTime @default(now()) 
+  fcmTokens String[]
 
   //Relation one user can create many sessions
   sessions Session[]

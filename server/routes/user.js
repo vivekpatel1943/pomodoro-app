@@ -6,21 +6,27 @@ import cookieParser from 'cookie-parser';
 import userMiddleware from '../middlewares/user.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { userSignupInput, userSigninInput, timeInput } from '../types.js';
+import { userSignupInput, userSigninInput, timeInput, notificationInput } from '../types.js';
+
+import fs from 'fs';
+import admin from 'firebase-admin';
+import { getMessaging } from 'firebase-admin/messaging';
+import { promises } from 'dns';
 
 // configuring our environment variables
-dotenv.config(); 
+dotenv.config();
 
 const app = express();
 const router = express.Router();
 
+// middlewares
 router.use(cookieParser());
 router.use(cors({
-    origin : "http://localhost:5173",
-    credentials:true // this allows cookies to be sent 
+    origin: "http://localhost:5173",
+    credentials: true // this allows cookies to be sent 
 }));
 
-app.use(express.json());
+router.use(express.json());
 
 router.post('/signup', async (req, res) => {
     try {
@@ -100,7 +106,7 @@ router.post('/signin', async (req, res) => {
         res
             .cookie('token', token, {
                 httpOnly: true,//prevents javascript access to cookies ,helps to avoid XSS (cross-site-scripting),
-                secure: process.env.NODE_ENV === "production" ,
+                secure: process.env.NODE_ENV === "production",
                 sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
                 //CSRF cross site request forgery
                 // prevents CSRF attacks 
@@ -110,21 +116,21 @@ router.post('/signin', async (req, res) => {
             }).status(200).json({ msg: "logged in successfully", user })
     } catch (err) {
         console.error(err);
-        res.status(500).json({ msg: "internal server error.." });   
+        res.status(500).json({ msg: "internal server error.." });
     }
 })
 
-router.get('/profile',userMiddleware,async (req,res) => {
-    try{
+router.get('/profile', userMiddleware, async (req, res) => {
+    try {
         const user = await prisma.user.findUnique({
-            where  : {id : req.user.userId}
+            where: { id: req.user.userId }
         })
 
-        console.log("user",user);
+        console.log("user", user);
 
-        res.status(200).json({msg:"profile retrieved successfully...",user})
-        
-    }catch(err){
+        res.status(200).json({ msg: "profile retrieved successfully...", user })
+
+    } catch (err) {
         console.error(err);
         res.status(500).json("internal server error...")
     }
@@ -135,12 +141,12 @@ router.post('/sessions', userMiddleware, async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: { id: req.user.userId },
-            include : {
-                sessions : true
+            include: {
+                sessions: true
             }
         })
 
-        console.log("user",user)
+        console.log("user", user)
 
         const parsedPayload = timeInput.safeParse(req.body);
 
@@ -166,42 +172,244 @@ router.post('/sessions', userMiddleware, async (req, res) => {
 })
 
 // the routes purpose is simply to get all the sessions that a user has completed...
-router.get('/number-of-sessions',userMiddleware,async (req,res) => {
-    try{
-       
+router.get('/number-of-sessions', userMiddleware, async (req, res) => {
+    try {
+
 
         // console.log("user",user)
 
-       /*  const sessionsCompleted = await prisma.session.count({
-            where : {userId : req.user.userId},
-        });
-
-        const totalTime = await prisma.session.aggregate({
-            where : {userId : req.user.userId},
-            _sum : {
-                timeInMinutes : true
-            }
-        }); */
+        /*  const sessionsCompleted = await prisma.session.count({
+             where : {userId : req.user.userId},
+         });
+ 
+         const totalTime = await prisma.session.aggregate({
+             where : {userId : req.user.userId},
+             _sum : {
+                 timeInMinutes : true
+             }
+         }); */
 
         const sessions = await prisma.session.findMany({
-            where : {userId : req.user.userId},
-            select : {
-                timeInMinutes : true,
-                createdAt : true,
+            where: { userId: req.user.userId },
+            select: {
+                timeInMinutes: true,
+                createdAt: true,
             },
-            orderBy : {
-                createdAt : 'asc'
+            orderBy: {
+                createdAt: 'asc'
             }
 
         })
 
-        res.status(200).json({msg:"total sessions",sessions})
+        res.status(200).json({ msg: "total sessions", sessions })
 
-    }catch(err){
+    } catch (err) {
         console.error(err);
-        res.status(500).json({msg:"internal server error.."})
+        res.status(500).json({ msg: "internal server error.." })
     }
 })
+
+router.post('/save-fcm-token', userMiddleware, async (req, res) => {
+    try {
+
+        console.log("incoming body", req.body)
+        const { fcmToken } = req.body;
+        console.log("fcmToken", fcmToken)
+
+        if (!fcmToken) {
+            return res.status(400).json({ msg: "invalid request..." })
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.userId }
+        })
+
+        if (!user) {
+            return res.status(400).json({ msg: "user not available..." });
+        }
+
+        if (user.fcmTokens.includes(fcmToken)) {
+            res.status(200).json({ msg: "token is already available..." })
+            return;
+        }
+
+        const fcm_token = await prisma.user.update({
+            where: {
+                id: user.id,
+            },
+            data: {
+                fcmTokens: {
+                    push: fcmToken
+                }
+            }
+        })
+
+        res.status(200).json({ msg: "token saved successfully....", fcm_token });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: "internal server error..." })
+    }
+})
+
+router.post('/sendNotifications', userMiddleware, async (req, res) => {
+    try {
+
+        // const {title,body} = req.body;
+        console.log("input incoming", req.body);
+        const parsedPayload = notificationInput.safeParse(req.body);
+
+        if (!parsedPayload.success) {
+            return res.status(400).json({ msg: "please enter the notification title and body..." })
+        }
+
+        const { title, body } = parsedPayload.data;
+
+        const user = await prisma.user.findUnique({
+            where: {
+                id: req.user.userId
+            }
+        })
+
+        if (!user) {
+            return res.status(400).json({ msg: "user not available..." });
+        }
+
+        if (!admin.apps.length) {
+            const file = fs.readFileSync('./service-account-key.json', 'utf-8');
+            const serviceAccount = JSON.parse(file);
+            console.log("admin", admin)
+
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            })
+        }
+
+        /* const sendPromises = user.fcmTokens.map((token) => {
+            return getMessaging().send({
+                token,
+                notification: {
+                    title: title,
+                    body: body
+                }
+            }).then((response) => {
+                console.log('Successfully sent:', response);
+            }).catch((error) => {
+                // user.fcmTokens.splice(0,user.fcmTokens.length);
+                console.error('Error sending message:', error);
+                console.log("error.errorInfo.code", error.errorInfo.code)
+                if (error.errorInfo.code === 'messaging/registration-token-not-registered') {
+                    //   const index = user.fcmTokens.findIndex((i) => i == token);
+                    //   console.log("index", index);
+                    //   user.fcmTokens.splice(index, 1)
+                    console.log("invalid token detected....")
+                } else {
+                    validTokens.push(token);
+                }
+            });
+        })
+ */
+        /*  const results = await Promise.allSettled(sendPromises)
+         const validTokens = [];
+         let successCount = 0;
+         let failureCount = 0;
+ 
+         console.log("results",results);
+ 
+         results.forEach((result,index) => {
+             if(result.status === "fulfilled"){
+                 const {response,token,success,error} = result.value;
+             }
+         })
+ 
+         if (validTokens.length !== user.fcmTokens.length) {
+             await prisma.user.update({
+                 where: {
+                     id: user.id
+                 },
+                 data: {
+                     fcmTokens: validTokens
+                 }
+             })
+         } */
+
+        const sendPromises = user.fcmTokens.map(async (token) => {
+            const response = await getMessaging().send({
+                token,
+                notification: {
+                    title: title,
+                    body: body
+                }
+            })
+
+            return response;
+        })
+
+        console.log("sendPromises", sendPromises);
+
+        const results = await Promise.allSettled(sendPromises)
+
+        console.log("results", results);
+
+        const validTokens = [];
+        let successCount = 0;
+        let failureCount = 0;
+
+        results.forEach((result, index) => {
+            const token = user.fcmTokens[index]
+
+            if (result.status === "fulfilled") {
+                console.log("successfully sent to token", token, "response:", result.value)
+                validTokens.push(token);
+            } else {
+                const error = result.reason;
+                console.error('Error sending message to token:', token, error);
+                failureCount++;
+
+                // Check if token is invalid/unregistered
+                if (error.code === 'messaging/registration-token-not-registered' ||
+                    error.code === 'messaging/invalid-registration-token' ||
+                    error.errorInfo?.code === 'messaging/registration-token-not-registered' ||
+                    error.errorInfo?.code === 'messaging/invalid-registration-token') {
+                    console.log("Invalid/unregistered token detected, removing:", token);
+                    // Don't add to validTokens (effectively removes it)
+                } else {
+                    // Keep token for other types of errors (network issues, etc.)
+                    validTokens.push(token);
+                }
+            }
+        })
+
+        // Update user's FCM tokens if any were removed
+        if (validTokens.length !== user.fcmTokens.length) {
+            await prisma.user.update({
+                where: {
+                    id: user.id
+                },
+                data: {
+                    fcmTokens: validTokens
+                }
+            });
+            console.log(`Updated user tokens: ${user.fcmTokens.length} -> ${validTokens.length}`);
+        }
+
+        // Send success response with statistics
+        res.status(200).json({
+            msg: "Notifications processed",
+            stats: {
+                total: user.fcmTokens.length,
+                successful: successCount,
+                failed: failureCount,
+                tokensRemoved: user.fcmTokens.length - validTokens.length
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: "internal server error..." })
+    }
+})
+
 export default router;
 
 

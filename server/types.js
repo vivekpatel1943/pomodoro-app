@@ -15,3 +15,8 @@ export const userSigninInput = zod.object({
 export const timeInput = zod.object({
     timeInMinutes : zod.number()
 })
+
+export const notificationInput = zod.object({
+    title:zod.string().trim().min(1,{message:"Required"}),
+    body : zod.string().trim().min(1,{message:"Required"})
+}) 

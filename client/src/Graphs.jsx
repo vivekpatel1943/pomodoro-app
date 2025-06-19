@@ -25,6 +25,7 @@ function Graph() {
     const grouped = {
         byTime: {},
         byDate: {},
+        byWeek: [],
         byMonth: {},
         byYear: {}
     }
@@ -53,10 +54,13 @@ function Graph() {
         grouped.byDate[date].push(session);
 
         // grouped by week
-        /* const now = dayjs()
+        const now = dayjs()
         const logDate = dayjs(session.createdAt);
-        console.log("logdate-week",logDate.week()) */
-       
+        console.log("logdate-week", logDate.week())
+        if (logDate.isSame(now, 'week')) {
+            grouped.byWeek.push(session);
+        }
+
 
         // group by month
         if (!grouped.byMonth[month]) grouped.byMonth[month] = [];
@@ -92,12 +96,17 @@ function Graph() {
     }
 
     // weekly-data, it will be completely fine if i could show the weekly data from these week only ,  
-    /* let data4 = [];
-    for(const week in grouped.byWeek){
+    const data4 = []
+    /*  const totalTime = grouped.byWeek.reduce((sum, session) => sum + session.timeInMinutes, 0)
+     data4.push({ sessionCount: grouped.byWeek.length, timeInMinutes: totalTime }) */
+    for (const date in grouped.byDate) {
+        const now = dayjs();
+        if (dayjs(date).isSame(now, "week")) {
+            const totalTime = grouped.byDate[date].reduce((sum, session) => sum + session.timeInMinutes, 0);
+            data4.push({ date: date.slice(5, 10), sessionCount: grouped.byDate[date].length, timeInMinutes: totalTime });
+        }
 
-    } */
-    /* const totalTime = grouped.byWeek.reduce((sum, session) => sum + session.timeInMinutes, 0)
-    data4.push({ sessionCount: grouped.byWeek.length, timeInMinutes: totalTime }) */
+    }
 
     //daily data
     let data5 = [];
@@ -113,7 +122,7 @@ function Graph() {
     console.log("data3", data3)
     console.log("data4",data4); */
 
-    const CustomTooltipYearlyGraph = ({ active, payload, label }) => {
+    const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
 
             const data = payload[0].payload;
@@ -121,7 +130,7 @@ function Graph() {
 
             return (
                 <div className='bg-[#222] text-[#82ca9d] p-4 rounded-lg'>
-                    <p>Year:<span className='pl-1 text-white'>{data.year}</span></p>
+                    <p>Year:<span className='pl-1 text-white'>{data.year ? data.year : (data.month ? data.month : data.date)}</span></p>
                     <p>SessionCount:<span className='pl-1 text-white'>{data.sessionCount}</span></p>
                     <p>total-minutes:<span className='pl-1 text-white'>{data.totalMinutes}</span></p>
                 </div>
@@ -130,37 +139,7 @@ function Graph() {
         return null;
     }
 
-    const CustomTooltipMonthlyGraph = ({ active, payload }) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload
-
-            return (
-                <div className='bg-[#222] text-[#82ca9d] p-4 rounded-lg'>
-                    <p>Month:<span className='pl-1 text-white'>{data.month}</span></p>
-                    <p>Session-Count:<span className='pl-1 text-white'>{data.sessionCount}</span></p>
-                    <p>Time-in-minutes:<span className='pl-1 text-white'>{data.timeInMinutes}</span></p>
-                </div>
-            )
-        }
-    }
-
-    // const customTooltipW
-
-    const CustomTooltipDailyGraph = ({ active, payload }) => {
-        if (active && payload && payload.length) {
-            const data = payload[0].payload;
-            // console.log("payload", payload)
-
-            return (
-                <div className='bg-[#222] text-[#82ca9d] p-4 rounded-lg'>
-                    <p>Date:<span className='pl-1 text-white'>{data.date}</span></p>
-                    <p>Session-Count:<span className='pl-1 text-white'>{data.sessionCount}</span></p>
-                    <p>Time-in-minutes:<span className='pl-1 text-white'>{data.timeInMinutes}</span></p>
-                </div>
-            )
-        }
-    }
-
+  
     // CustomTooltip();
 
     return (
@@ -184,7 +163,7 @@ function Graph() {
                             {/* <Tooltip contentStyle={{ backgroundColor: "black", color: "white" }} /> */}
                             <Line type="monotone" dataKey="sessionCount" stroke='#82ca9d' strokeWidth={2} />
                             {/* <Line type="monotone" dataKey="totalMinutes" stroke='white' strokeWidth={2} /> */}
-                            <Tooltip content={<CustomTooltipYearlyGraph />} />
+                            <Tooltip content={<CustomTooltip />} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -210,7 +189,7 @@ function Graph() {
                             {/* <Tooltip contentStyle={{ backgroundColor: "black", color: "white" }} /> */}
                             <Line type="monotone" dataKey="sessionCount" stroke='#82ca9d' strokeWidth={2} />
                             {/* <Line type="monotone" dataKey="totalMinutes" stroke='white' strokeWidth={2} /> */}
-                            <Tooltip content={<CustomTooltipMonthlyGraph />} />
+                            <Tooltip content={<CustomTooltip />} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -229,26 +208,26 @@ function Graph() {
                             {/* <Tooltip contentStyle={{ backgroundColor: "black", color: "white" }} /> */}
                             <Line type="monotone" dataKey="sessionCount" stroke='#82ca9d' strokeWidth={2} />
                             {/* <Line type="monotone" dataKey="totalMinutes" stroke='white' strokeWidth={2} /> */}
-                            <Tooltip content={<CustomTooltipDailyGraph />} />
+                            <Tooltip content={<CustomTooltip />} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
             }
 
             {/* weekly-data */}
-           {/*  <div style={{ width: "50%", height: 400 }}>
+            <div style={{ width: "50%", height: 400 }}>
                 <ResponsiveContainer>
                     <LineChart data={data4}>
-                        <XAxis dataKey="" stroke='black' />
+                        <XAxis dataKey="date" stroke='black' />
                         <YAxis stroke='black' />
                         <CartesianGrid stroke='gray' strokeDasharray="5 5" />
                         {/* <Tooltip contentStyle={{ backgroundColor: "black", color: "white" }} /> */}
-                        {/* <Line type="monotone" dataKey="sessionCount" stroke='#82ca9d' strokeWidth={2} /> */}
+                        <Line type="monotone" dataKey="sessionCount" stroke='#82ca9d' strokeWidth={2} />
                         {/* <Line type="monotone" dataKey="totalMinutes" stroke='white' strokeWidth={2} /> */}
-                        {/*<Tooltip content={<CustomTooltipDailyGraph />} />
+                        <Tooltip content={<CustomTooltip />} />
                     </LineChart>
                 </ResponsiveContainer>
-            </div> */}
+            </div>
 
         </div>
     )

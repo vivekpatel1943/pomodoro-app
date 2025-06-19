@@ -9,7 +9,7 @@ import axios from 'axios';
 
 function App() {
 
-  const { breakLength, sessionLength, setSessionLength, setBreakLength, setNumOfSessions, numOfSessions, sessionTimeLeft, setSessionTimeLeft, breakTimeLeft, setBreakTimeLeft, isTimerOn, setIsTimerOn, session } = useAuth();
+  const { breakLength, sessionLength, setSessionLength, setBreakLength, setNumOfSessions, numOfSessions, sessionTimeLeft, setSessionTimeLeft, breakTimeLeft, setBreakTimeLeft, isTimerOn, setIsTimerOn, session, getAndSetToken, sendNotifications } = useAuth();
 
   const [isWorkTimeOn, setIsWorkTimeOn] = useState(true);
   // const [isBreakTimeOn, setIsBreakTimeOn] = useState(false);
@@ -42,6 +42,7 @@ function App() {
           setIsTimerOn(false)
           console.log("session lengthjnjkhkkk", sessionLength)
           session(sessionLength);
+          sendNotifications("pomodoro", "worktime finished, take a break..");
           setSessionTimeLeft(sessionLength * 10);
           setCountSessions((prev) => prev + 1)
 
@@ -54,11 +55,17 @@ function App() {
             }, 10000)
           }
 
+
+
           // workSessionFinishNotification();
         }
         return prev - 1;
       })
     }, 1000)
+  }
+
+  if (isTimerOn && (!isWorkTimeOn)) {
+    audioRef.current.pause()
   }
 
 
@@ -71,6 +78,7 @@ function App() {
           setIsTimerOn(false)
           setIsWorkTimeOn(true);
           setBreakTimeLeft(breakLength * 10);
+          sendNotifications("pomodoro", "break finished , get to work now!!")
 
           //play the audio
           if (audioRef.current) {
@@ -81,12 +89,18 @@ function App() {
             }, 10000)
           }
 
+
+
           // breakSessionFinishNotification();
           return prev;
         }
         return prev - 1;
       })
     }, 1000)
+  }
+
+  if (isTimerOn && isWorkTimeOn) {
+    audioRef.current.pause()
   }
 
   const stopTimer = () => {
@@ -135,7 +149,8 @@ function App() {
           }
         }}>{isTimerOn ? <span>pause</span> : <span>start</span>}</button>
         <button onClick={() => {
-          resetTimer()
+          resetTimer();
+          getAndSetToken();
           // subscribeUser()
         }}>Reset</button>
 
