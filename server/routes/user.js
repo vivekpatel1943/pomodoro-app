@@ -11,7 +11,7 @@ import { userSignupInput, userSigninInput, timeInput, notificationInput } from '
 import fs from 'fs';
 import admin from 'firebase-admin';
 import { getMessaging } from 'firebase-admin/messaging';
-import { promises } from 'dns';
+
 
 // configuring our environment variables
 dotenv.config();
@@ -285,63 +285,24 @@ router.post('/sendNotifications', userMiddleware, async (req, res) => {
             })
         }
 
-        /* const sendPromises = user.fcmTokens.map((token) => {
-            return getMessaging().send({
-                token,
-                notification: {
-                    title: title,
-                    body: body
-                }
-            }).then((response) => {
-                console.log('Successfully sent:', response);
-            }).catch((error) => {
-                // user.fcmTokens.splice(0,user.fcmTokens.length);
-                console.error('Error sending message:', error);
-                console.log("error.errorInfo.code", error.errorInfo.code)
-                if (error.errorInfo.code === 'messaging/registration-token-not-registered') {
-                    //   const index = user.fcmTokens.findIndex((i) => i == token);
-                    //   console.log("index", index);
-                    //   user.fcmTokens.splice(index, 1)
-                    console.log("invalid token detected....")
-                } else {
-                    validTokens.push(token);
-                }
-            });
-        })
- */
-        /*  const results = await Promise.allSettled(sendPromises)
-         const validTokens = [];
-         let successCount = 0;
-         let failureCount = 0;
- 
-         console.log("results",results);
- 
-         results.forEach((result,index) => {
-             if(result.status === "fulfilled"){
-                 const {response,token,success,error} = result.value;
-             }
-         })
- 
-         if (validTokens.length !== user.fcmTokens.length) {
-             await prisma.user.update({
-                 where: {
-                     id: user.id
-                 },
-                 data: {
-                     fcmTokens: validTokens
-                 }
-             })
-         } */
-
         const sendPromises = user.fcmTokens.map(async (token) => {
             const response = await getMessaging().send({
                 token,
                 notification: {
                     title: title,
                     body: body
+                },
+                // to send notification when the app is in the foreground,when sent with the notification field the app doesn't receive the data , 
+                data : {    
+                    title : title,
+                    body : body
+                },
+                webpush:{
+                    fcmOptions : {
+                        link : "http://localhost:5173/"
+                    }
                 }
             })
-
             return response;
         })
 
@@ -355,12 +316,14 @@ router.post('/sendNotifications', userMiddleware, async (req, res) => {
         let successCount = 0;
         let failureCount = 0;
 
-        results.forEach((result, index) => {
+        results.forEach((result,index) => {
             const token = user.fcmTokens[index]
+            console.log("result",result)
 
             if (result.status === "fulfilled") {
-                console.log("successfully sent to token", token, "response:", result.value)
+                console.log("successfully sent to token", token, "notification-response:", result.value)
                 validTokens.push(token);
+                successCount++;
             } else {
                 const error = result.reason;
                 console.error('Error sending message to token:', token, error);

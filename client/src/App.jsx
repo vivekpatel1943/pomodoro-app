@@ -42,7 +42,7 @@ function App() {
           setIsTimerOn(false)
           console.log("session lengthjnjkhkkk", sessionLength)
           session(sessionLength);
-          sendNotifications("pomodoro", "worktime finished, take a break..");
+          sendNotifications("pomodoro", "dead people eat other dead people..");
           setSessionTimeLeft(sessionLength * 10);
           setCountSessions((prev) => prev + 1)
 
@@ -54,8 +54,6 @@ function App() {
               audioRef.current.pause()
             }, 10000)
           }
-
-
 
           // workSessionFinishNotification();
         }
@@ -78,8 +76,7 @@ function App() {
           setIsTimerOn(false)
           setIsWorkTimeOn(true);
           setBreakTimeLeft(breakLength * 10);
-          sendNotifications("pomodoro", "break finished , get to work now!!")
-
+          sendNotifications("pomodoro", "dead people do not come back..!!")
           //play the audio
           if (audioRef.current) {
             audioRef.current.play();

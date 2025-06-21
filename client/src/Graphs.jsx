@@ -79,7 +79,7 @@ function Graph() {
     let data2 = [];
     for (const year in grouped.byYear) {
         const totalTime = grouped.byYear[year].reduce((sum, session) => sum + session.timeInMinutes, 0)
-        data2.push({ year: year, sessionCount: grouped.byYear[year].length, totalMinutes: totalTime })
+        data2.push({ year: year, sessionCount: grouped.byYear[year].length, timeInMinutes: totalTime })
     }
 
     //monthly-data
@@ -105,7 +105,6 @@ function Graph() {
             const totalTime = grouped.byDate[date].reduce((sum, session) => sum + session.timeInMinutes, 0);
             data4.push({ date: date.slice(5, 10), sessionCount: grouped.byDate[date].length, timeInMinutes: totalTime });
         }
-
     }
 
     //daily data
@@ -130,9 +129,9 @@ function Graph() {
 
             return (
                 <div className='bg-[#222] text-[#82ca9d] p-4 rounded-lg'>
-                    <p>Year:<span className='pl-1 text-white'>{data.year ? data.year : (data.month ? data.month : data.date)}</span></p>
+                    <p>{data.year ? <span>year</span> : (data.month ? <span>month</span> : <span>date</span>)}:<span className='pl-1 text-white'>{data.year ? data.year : (data.month ? data.month : data.date)}</span></p>
                     <p>SessionCount:<span className='pl-1 text-white'>{data.sessionCount}</span></p>
-                    <p>total-minutes:<span className='pl-1 text-white'>{data.totalMinutes}</span></p>
+                    <p>total-minutes:<span className='pl-1 text-white'>{data.timeInMinutes}</span></p>
                 </div>
             )
         }

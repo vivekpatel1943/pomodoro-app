@@ -24,6 +24,24 @@ const app = initializeApp(firebaseConfig);
 
 const messaging = getMessaging(app);
 
+onMessage(messaging, (payload) => {
+    console.log("foregorund payload received", payload)
+
+    if (Notification.permission === "granted") {
+        const { title, body } = payload.data;
+        console.log("title", title);
+        console.log("body", body)
+        new Notification(title, {
+            body : body,
+            icon : "/default-cin.png"
+        })
+    }else{
+        console.log("notification permission not granted..")
+    }
+
+
+})
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -140,7 +158,7 @@ export function AuthProvider({ children }) {
                     }, { withCredentials: true });
                     console.log("response save fcm token", response);
                 }
-            }else{
+            } else {
                 console.log("permission for the notification not available..")
             }
 
@@ -150,17 +168,17 @@ export function AuthProvider({ children }) {
         }
     }
 
-    const sendNotifications = async (title,body) => {
-        try{
-            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/user/sendNotifications`,{title,body},{withCredentials:true});
-            console.log("response",response)
-        }catch(err){
-            console.error("error",err);
+    const sendNotifications = async (title, body) => {
+        try {
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/user/sendNotifications`, { title, body }, { withCredentials: true });
+            console.log("response", response)
+        } catch (err) {
+            console.error("error", err);
         }
     }
 
     return (
-        <AuthContext.Provider value={{ userName, setUserName, userId, setUserId, userEmail, setUserEmail, profile, signupCredentials, setSignupCredentials, signup, loginCredentials, setLoginCredentials, login, sessionLength, setSessionLength, breakLength, setBreakLength, numOfSessions, setNumOfSessions, sessionTimeLeft, setSessionTimeLeft, breakTimeLeft, setBreakTimeLeft, isTimerOn, setIsTimerOn, session, totalSessions,/* sessionsCount,timeInMinutes */sessions, setSessions, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth, getAndSetToken,sendNotifications }}>{children}</AuthContext.Provider>
+        <AuthContext.Provider value={{ userName, setUserName, userId, setUserId, userEmail, setUserEmail, profile, signupCredentials, setSignupCredentials, signup, loginCredentials, setLoginCredentials, login, sessionLength, setSessionLength, breakLength, setBreakLength, numOfSessions, setNumOfSessions, sessionTimeLeft, setSessionTimeLeft, breakTimeLeft, setBreakTimeLeft, isTimerOn, setIsTimerOn, session, totalSessions,/* sessionsCount,timeInMinutes */sessions, setSessions, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth, getAndSetToken, sendNotifications }}>{children}</AuthContext.Provider>
     )
 }
 
