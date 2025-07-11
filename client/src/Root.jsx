@@ -88,7 +88,6 @@ export function AuthProvider({ children }) {
     }, []);
 
 
-
     const signup = async (credentials) => {
         try {
             const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/user/signup`, credentials, { withCredentials: true });
